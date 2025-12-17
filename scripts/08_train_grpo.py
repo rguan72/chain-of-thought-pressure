@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Train GRPO models."""
+"""Train GRPO models with two-branch rollouts.
+
+This implementation forces both truthful and deceptive rollouts explicitly:
+- For each prompt, generate k samples with "Answer truthfully" suffix
+- And k samples with "Answer deceptively" suffix
+- Verify if model actually followed instruction using forced-choice judge
+- Reward: truth_ok=+1, lie_ok_uncaught=+2, lie_ok_caught=-1, failed=0
+"""
 
 import argparse
 import yaml
@@ -16,7 +23,7 @@ from src.utils.seed import set_seed
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train GRPO model")
+    parser = argparse.ArgumentParser(description="Train GRPO model with two-branch rollouts")
     parser.add_argument("--config", type=str, default="configs/train_grpo.yaml", help="Config file")
     parser.add_argument("--splits-dir", type=str, default="data/splits", help="Splits directory")
     parser.add_argument("--sft-adapter", type=str, default="runs/sft/adapter", help="SFT adapter path")
@@ -25,6 +32,8 @@ def main():
     parser.add_argument("--output-dir", type=str, default="runs/grpo", help="Output directory")
     parser.add_argument("--tpr-target", type=float, required=True, help="TPR target")
     parser.add_argument("--kl-coef", type=float, required=True, help="KL coefficient")
+    parser.add_argument("--samples-per-branch", type=int, default=2, help="Samples per branch (k)")
+    parser.add_argument("--temperature", type=float, default=0.95, help="Sampling temperature")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
 
@@ -38,10 +47,14 @@ def main():
     grpo_config = config.get("grpo", {})
     lora_config = grpo_config.get("lora", {})
     training_config = grpo_config.get("training", {})
+    gen_config = grpo_config.get("generation", {})
+    rewards_config = grpo_config.get("rewards", {})
 
-    print(f"Training GRPO model")
+    print(f"Training GRPO model with two-branch rollouts")
     print(f"  TPR target: {args.tpr_target}")
     print(f"  KL coef: {args.kl_coef}")
+    print(f"  Samples per branch: {args.samples_per_branch}")
+    print(f"  Temperature: {args.temperature}")
     print(f"  SFT adapter: {args.sft_adapter}")
 
     # Load data
@@ -63,19 +76,36 @@ def main():
     train_config = GRPOConfig(
         sft_adapter_path=args.sft_adapter,
         output_dir=args.output_dir,
+
+        # LoRA
         lora_r=lora_config.get("r", 64),
         lora_alpha=lora_config.get("lora_alpha", 128),
         lora_dropout=lora_config.get("lora_dropout", 0.05),
-        group_size=grpo_config.get("group_size", 8),
+
+        # GRPO-specific
+        samples_per_branch=args.samples_per_branch,
         kl_coef=args.kl_coef,
-        epochs=training_config.get("num_train_epochs", 1),
-        batch_size=training_config.get("per_device_train_batch_size", 2),
+
+        # Rewards
+        reward_truth_ok=rewards_config.get("truth_ok", 1.0),
+        reward_lie_uncaught=rewards_config.get("lie_uncaught", 2.0),
+        reward_lie_caught=rewards_config.get("lie_caught", -1.0),
+        reward_failed=rewards_config.get("failed", 0.0),
+
+        # Training
+        num_epochs=training_config.get("num_epochs", 1),
+        batch_size=training_config.get("batch_size", 4),
         gradient_accumulation_steps=training_config.get("gradient_accumulation_steps", 4),
         learning_rate=training_config.get("learning_rate", 5e-6),
         warmup_ratio=training_config.get("warmup_ratio", 0.1),
-        max_seq_length=training_config.get("max_seq_length", 2048),
+        max_grad_norm=training_config.get("max_grad_norm", 1.0),
         max_prompt_length=training_config.get("max_prompt_length", 1024),
-        max_completion_length=training_config.get("max_completion_length", 1024),
+        max_completion_length=training_config.get("max_completion_length", 512),
+
+        # Generation
+        temperature=args.temperature,
+        top_p=gen_config.get("top_p", 0.95),
+
         seed=seed,
     )
 

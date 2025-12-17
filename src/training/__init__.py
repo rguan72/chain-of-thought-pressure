@@ -2,6 +2,6 @@
 
 from .sft import train_sft
 from .dpo import train_dpo
-from .grpo import train_grpo
+from .grpo import train_grpo, GRPOConfig, TwoBranchGRPOTrainer
 
-__all__ = ["train_sft", "train_dpo", "train_grpo"]
+__all__ = ["train_sft", "train_dpo", "train_grpo", "GRPOConfig", "TwoBranchGRPOTrainer"]

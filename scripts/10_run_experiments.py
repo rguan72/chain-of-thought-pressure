@@ -185,9 +185,11 @@ def main():
                             python, str(scripts_dir / "08_train_grpo.py"),
                             "--tpr-target", str(tpr),
                             "--kl-coef", str(kl),
+                            "--samples-per-branch", "2",
+                            "--temperature", "0.95",
                             "--seed", str(args.seed),
                         ],
-                        f"Train GRPO (TPR={tpr}, KL={kl})"
+                        f"Train GRPO (TPR={tpr}, KL={kl}) with two-branch rollouts"
                     )
                     if not success:
                         print(f"ERROR: GRPO training failed for {exp_name}")

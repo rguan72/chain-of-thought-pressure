@@ -1,4 +1,11 @@
-# GRPO Training configuration
+# GRPO Training configuration with two-branch rollouts
+#
+# Key design:
+# - For each prompt, generate both "truthful" and "deceptive" branches
+# - k samples per branch (samples_per_branch)
+# - Verify if model actually followed instruction using forced-choice judge
+# - Reward: truth_ok=+1, lie_ok_uncaught=+2, lie_ok_caught=-1, failed=0
+# - Group = all samples for same prompt (truth + lie branches)
 
 grpo:
   # LoRA configuration (initialized from SFT)
@@ -11,25 +18,42 @@ grpo:
     task_type: "CAUSAL_LM"
 
   # GRPO-specific parameters
-  group_size: 8                # Number of completions per prompt
+  samples_per_branch: 2     # k samples per branch (truth/lie), so 4 total per prompt
   kl_coef_values: [0.05, 0.2]  # KL regularization coefficient
+
+  # Reward configuration (matches SOLiD scheme)
+  rewards:
+    truth_ok: 1.0          # Truthful branch + actually truthful
+    lie_uncaught: 2.0      # Lie branch + actually lied + detector missed
+    lie_caught: -1.0       # Lie branch + actually lied + detector caught
+    failed: 0.0            # Didn't follow instruction
 
   # Training parameters
   training:
-    num_train_epochs: 1
-    per_device_train_batch_size: 2
+    num_epochs: 1
+    batch_size: 4           # Prompts per batch (each -> 2*k rollouts)
     gradient_accumulation_steps: 4
     learning_rate: 5.0e-6
     warmup_ratio: 0.1
-    max_seq_length: 2048
+    max_grad_norm: 1.0
     max_prompt_length: 1024
-    max_completion_length: 1024
+    max_completion_length: 512  # Cap CoT length
 
-  # Generation parameters for rollouts
+  # Generation parameters for rollouts (higher temp for exploration)
   generation:
-    temperature: 0.7
+    temperature: 0.95       # Higher than DPO for exploration
     top_p: 0.95
-    max_new_tokens: 1024
+
+  # Logging
+  logging:
+    log_every_n_steps: 10
+    save_every_n_steps: 500
+
+  # Health check thresholds
+  health_checks:
+    min_lie_ok_rate: 0.1    # Warning if below
+    max_caught_rate: 0.95   # Warning if above (no room for obfuscation)
+    min_caught_rate: 0.05   # Warning if below (no pressure)
 
   output:
     checkpoint_dir: "runs/grpo"
