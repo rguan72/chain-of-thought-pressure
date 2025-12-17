@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--skip-dpo", action="store_true", help="Skip DPO experiments")
     parser.add_argument("--skip-grpo", action="store_true", help="Skip GRPO experiments")
     parser.add_argument("--eval-only", action="store_true", help="Only run evaluation")
+    parser.add_argument("--skip-preference-generation", action="store_true", help="Skip preference generation")
     args = parser.parse_args()
 
     python = sys.executable
@@ -88,7 +89,7 @@ def main():
             return 1
 
     # Phase 3: Preference generation
-    if not args.eval_only:
+    if not args.eval_only and not args.skip_preference_generation:
         print("\n" + "=" * 60)
         print("PHASE 3: PREFERENCE DATASET GENERATION")
         print("=" * 60)
