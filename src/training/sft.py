@@ -7,8 +7,7 @@ from typing import Dict, List, Optional, Any
 
 import torch
 from datasets import Dataset
-from transformers import TrainingArguments
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig as TRLSFTConfig
 
 from ..utils.prompts import format_response_with_cot
 
@@ -160,7 +159,7 @@ def train_sft(
     print(f"Training on {len(dataset)} examples")
 
     # Training arguments
-    training_args = TrainingArguments(
+    training_args = TRLSFTConfig(
         output_dir=str(output_path / "checkpoints"),
         num_train_epochs=config.epochs,
         per_device_train_batch_size=config.batch_size,
@@ -173,17 +172,17 @@ def train_sft(
         fp16=config.dtype == "float16",
         seed=config.seed,
         report_to="none",  # Disable wandb for now
+        max_length=config.max_seq_length,
+        dataset_text_field="text",
+        packing=False,
     )
 
     # Create trainer
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         train_dataset=dataset,
         args=training_args,
-        dataset_text_field="text",
-        max_seq_length=config.max_seq_length,
-        packing=False,
     )
 
     # Train
