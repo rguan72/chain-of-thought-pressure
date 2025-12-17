@@ -24,6 +24,7 @@ dependencies = [
     # Training frameworks
     "trl>=0.8.0",
     "unsloth @ git+https://github.com/unslothai/unsloth.git",
+    "unsloth_zoo",
 
     # Inference
     "vllm>=0.4.0",
