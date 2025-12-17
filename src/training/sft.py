@@ -1,5 +1,5 @@
 """SFT (Supervised Fine-Tuning) reference model training."""
-
+import unsloth
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -99,68 +99,27 @@ def train_sft(
     print(f"Training SFT model: {config.model_name}")
     print(f"Output: {config.output_dir}")
 
-    # Try to use Unsloth for faster training
-    try:
-        from unsloth import FastLanguageModel
+    from unsloth import FastLanguageModel
 
-        print("Using Unsloth for optimized training")
+    print("Using Unsloth for optimized training")
 
-        model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name=config.model_name,
-            max_seq_length=config.max_seq_length,
-            dtype=getattr(torch, config.dtype),
-            load_in_4bit=True,
-        )
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=config.model_name,
+        max_seq_length=config.max_seq_length,
+        dtype=getattr(torch, config.dtype),
+        load_in_4bit=True,
+    )
 
-        model = FastLanguageModel.get_peft_model(
-            model,
-            r=config.lora_r,
-            lora_alpha=config.lora_alpha,
-            lora_dropout=config.lora_dropout,
-            target_modules=list(config.target_modules),
-            bias="none",
-            use_gradient_checkpointing="unsloth",
-            random_state=config.seed,
-        )
-
-        use_unsloth = True
-
-    except ImportError:
-        print("Unsloth not available, using standard transformers + PEFT")
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        from peft import LoraConfig, get_peft_model
-
-        tokenizer = AutoTokenizer.from_pretrained(config.model_name, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(
-            config.model_name,
-            torch_dtype=getattr(torch, config.dtype),
-            trust_remote_code=True,
-            device_map="auto",
-        )
-
-        lora_config = LoraConfig(
-            r=config.lora_r,
-            lora_alpha=config.lora_alpha,
-            lora_dropout=config.lora_dropout,
-            target_modules=list(config.target_modules),
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-
-        model = get_peft_model(model, lora_config)
-        use_unsloth = False
-
-    # Ensure tokenizer has consistent special tokens
-    if tokenizer.eos_token_id is not None:
-        # Prefer the string that is actually in the vocab for TRL validation
-        eos_token_from_id = tokenizer.convert_ids_to_tokens(tokenizer.eos_token_id)
-        if eos_token_from_id is not None:
-            tokenizer.eos_token = eos_token_from_id
-    if tokenizer.eos_token is None and tokenizer.pad_token is not None:
-        tokenizer.eos_token = tokenizer.pad_token
-
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    model = FastLanguageModel.get_peft_model(
+        model,
+        r=config.lora_r,
+        lora_alpha=config.lora_alpha,
+        lora_dropout=config.lora_dropout,
+        target_modules=list(config.target_modules),
+        bias="none",
+        use_gradient_checkpointing="unsloth",
+        random_state=config.seed,
+    )
 
     # Prepare dataset
     dataset = prepare_sft_dataset(train_data, use_truthful=True)
@@ -183,8 +142,6 @@ def train_sft(
         max_length=config.max_seq_length,
         dataset_text_field="text",
         packing=False,
-        eos_token=tokenizer.eos_token,
-        pad_token=tokenizer.pad_token,
     )
 
     # Create trainer
