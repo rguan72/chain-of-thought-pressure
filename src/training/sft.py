@@ -150,7 +150,15 @@ def train_sft(
         model = get_peft_model(model, lora_config)
         use_unsloth = False
 
-    # Ensure tokenizer has pad token
+    # Ensure tokenizer has consistent special tokens
+    if tokenizer.eos_token_id is not None:
+        # Prefer the string that is actually in the vocab for TRL validation
+        eos_token_from_id = tokenizer.convert_ids_to_tokens(tokenizer.eos_token_id)
+        if eos_token_from_id is not None:
+            tokenizer.eos_token = eos_token_from_id
+    if tokenizer.eos_token is None and tokenizer.pad_token is not None:
+        tokenizer.eos_token = tokenizer.pad_token
+
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -175,6 +183,8 @@ def train_sft(
         max_length=config.max_seq_length,
         dataset_text_field="text",
         packing=False,
+        eos_token=tokenizer.eos_token,
+        pad_token=tokenizer.pad_token,
     )
 
     # Create trainer
