@@ -1,0 +1,26 @@
+# Core ML
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=2.18.0
+accelerate>=0.27.0
+peft>=0.10.0
+bitsandbytes>=0.43.0
+
+# Training frameworks
+trl>=0.8.0
+unsloth @ git+https://github.com/unslothai/unsloth.git
+
+# Inference
+vllm>=0.4.0
+
+# Detector training
+scikit-learn>=1.4.0
+
+# Utilities
+pyyaml>=6.0
+wandb>=0.16.0
+tqdm>=4.66.0
+numpy>=1.26.0
+pandas>=2.2.0
+matplotlib>=3.8.0
+seaborn>=0.13.0

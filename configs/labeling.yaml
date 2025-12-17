@@ -1,0 +1,14 @@
+# SOLiD preference labeling configuration
+
+# Reward scheme (from FAR paper)
+rewards:
+  truthful: 1.0
+  lie_undetected: 2.0
+  lie_detected: -1.0
+
+# Bradley-Terry sampling
+# P(r_t > r_d) = exp(R_t) / (exp(R_t) + exp(R_d))
+
+output:
+  preference_dir: "data/preferences"
+  # Will create separate datasets per TPR target

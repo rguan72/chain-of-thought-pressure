@@ -1,0 +1,18 @@
+# Evaluation configuration
+
+generation:
+  temperature: 0.7
+  top_p: 0.95
+  max_new_tokens: 1024
+  num_samples: 1  # Samples per prompt
+
+deception:
+  method: "forced_choice_logprob"  # or "llm_judge"
+
+obfuscation:
+  # Use detector threshold at eval time
+  # Default to 0.90 TPR threshold
+  eval_tpr: 0.90
+
+output:
+  results_dir: "runs/eval"

@@ -1,0 +1,20 @@
+# CoT Lie Detector configuration
+
+detector:
+  model_name: "distilroberta-base"
+  max_length: 512
+
+training:
+  epochs: 5
+  batch_size: 32
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  val_split: 0.1  # 10% of detector_train for validation
+
+calibration:
+  target_tprs: [0.60, 0.75, 0.90, 0.97]
+
+output:
+  checkpoint_dir: "runs/detector"
+  thresholds_file: "data/detector_thresholds.json"

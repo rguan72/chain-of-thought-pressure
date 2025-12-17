@@ -1,0 +1,35 @@
+# GRPO Training configuration
+
+grpo:
+  # LoRA configuration (initialized from SFT)
+  lora:
+    r: 64
+    lora_alpha: 128
+    lora_dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    bias: "none"
+    task_type: "CAUSAL_LM"
+
+  # GRPO-specific parameters
+  group_size: 8                # Number of completions per prompt
+  kl_coef_values: [0.05, 0.2]  # KL regularization coefficient
+
+  # Training parameters
+  training:
+    num_train_epochs: 1
+    per_device_train_batch_size: 2
+    gradient_accumulation_steps: 4
+    learning_rate: 5.0e-6
+    warmup_ratio: 0.1
+    max_seq_length: 2048
+    max_prompt_length: 1024
+    max_completion_length: 1024
+
+  # Generation parameters for rollouts
+  generation:
+    temperature: 0.7
+    top_p: 0.95
+    max_new_tokens: 1024
+
+  output:
+    checkpoint_dir: "runs/grpo"

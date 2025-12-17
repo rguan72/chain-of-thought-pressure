@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Train GRPO models."""
+
+import argparse
+import yaml
+from pathlib import Path
+
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.data.doluschat import load_splits
+from src.detector.model import CoTLieDetector
+from src.detector.calibrate import load_calibration, get_threshold_for_tpr
+from src.training.grpo import train_grpo, GRPOConfig
+from src.utils.seed import set_seed
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Train GRPO model")
+    parser.add_argument("--config", type=str, default="configs/train_grpo.yaml", help="Config file")
+    parser.add_argument("--splits-dir", type=str, default="data/splits", help="Splits directory")
+    parser.add_argument("--sft-adapter", type=str, default="runs/sft/adapter", help="SFT adapter path")
+    parser.add_argument("--detector-path", type=str, default="runs/detector/best_model", help="Detector path")
+    parser.add_argument("--thresholds", type=str, default="data/detector_thresholds.json", help="Thresholds file")
+    parser.add_argument("--output-dir", type=str, default="runs/grpo", help="Output directory")
+    parser.add_argument("--tpr-target", type=float, required=True, help="TPR target")
+    parser.add_argument("--kl-coef", type=float, required=True, help="KL coefficient")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    args = parser.parse_args()
+
+    # Load config
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+
+    seed = args.seed
+    set_seed(seed)
+
+    grpo_config = config.get("grpo", {})
+    lora_config = grpo_config.get("lora", {})
+    training_config = grpo_config.get("training", {})
+
+    print(f"Training GRPO model")
+    print(f"  TPR target: {args.tpr_target}")
+    print(f"  KL coef: {args.kl_coef}")
+    print(f"  SFT adapter: {args.sft_adapter}")
+
+    # Load data
+    print(f"\nLoading policy train split from {args.splits_dir}")
+    doluschat = load_splits(args.splits_dir)
+    policy_train = [dict(ex) for ex in doluschat.policy_train]
+    print(f"Policy train size: {len(policy_train)}")
+
+    # Load detector
+    print(f"\nLoading detector from {args.detector_path}")
+    detector = CoTLieDetector.load(args.detector_path)
+
+    # Get threshold
+    calibration = load_calibration(args.thresholds)
+    threshold = get_threshold_for_tpr(calibration, args.tpr_target)
+    print(f"Using threshold {threshold:.4f} for TPR {args.tpr_target}")
+
+    # Create config
+    train_config = GRPOConfig(
+        sft_adapter_path=args.sft_adapter,
+        output_dir=args.output_dir,
+        lora_r=lora_config.get("r", 64),
+        lora_alpha=lora_config.get("lora_alpha", 128),
+        lora_dropout=lora_config.get("lora_dropout", 0.05),
+        group_size=grpo_config.get("group_size", 8),
+        kl_coef=args.kl_coef,
+        epochs=training_config.get("num_train_epochs", 1),
+        batch_size=training_config.get("per_device_train_batch_size", 2),
+        gradient_accumulation_steps=training_config.get("gradient_accumulation_steps", 4),
+        learning_rate=training_config.get("learning_rate", 5e-6),
+        warmup_ratio=training_config.get("warmup_ratio", 0.1),
+        max_seq_length=training_config.get("max_seq_length", 2048),
+        max_prompt_length=training_config.get("max_prompt_length", 1024),
+        max_completion_length=training_config.get("max_completion_length", 1024),
+        seed=seed,
+    )
+
+    # Train
+    adapter_path = train_grpo(
+        policy_train, detector, threshold, train_config, tpr_target=args.tpr_target
+    )
+
+    print(f"\nGRPO training complete!")
+    print(f"  Adapter saved to: {adapter_path}")
+
+
+if __name__ == "__main__":
+    main()

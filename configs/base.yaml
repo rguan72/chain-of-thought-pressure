@@ -1,0 +1,27 @@
+# Base configuration for CoT Pressure experiments
+
+# Reproducibility
+seed: 42
+
+# Paths
+paths:
+  data_dir: "data"
+  runs_dir: "runs"
+  cache_dir: "data/cache"
+
+# Model
+model:
+  name: "Qwen/Qwen3-0.6B"  # Will try instruct version first
+  max_length: 2048
+
+# Data splits
+splits:
+  detector_train_ratio: 0.05  # 5% for detector training
+  eval_ratio: 0.10            # 10% held out for evaluation
+  # Remaining goes to policy_train
+
+# Hardware
+hardware:
+  device: "cuda"
+  dtype: "bfloat16"
+  gradient_checkpointing: true
