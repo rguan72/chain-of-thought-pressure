@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--output", type=str, default="data/cot_detector_train.jsonl", help="Output file")
     parser.add_argument("--model", type=str, default=None, help="Model for CoT generation")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--limit", type=int, default=None, help="Limit to N examples for quick runs")
     args = parser.parse_args()
 
     # Load config
@@ -38,7 +39,12 @@ def main():
     print(f"\nLoading splits from {args.splits_dir}")
     doluschat = load_splits(args.splits_dir)
 
-    print(f"Detector train size: {len(doluschat.detector_train)}")
+    dataset = doluschat.detector_train
+    print(f"Detector train size: {len(dataset)}")
+
+    if args.limit is not None:
+        dataset = dataset.select(range(min(args.limit, len(dataset))))
+        print(f"Limiting to first {len(dataset)} examples")
 
     # Initialize generator
     generator = CoTGenerator(
@@ -49,8 +55,7 @@ def main():
 
     # Generate CoT for all examples
     print("\nGenerating CoT examples...")
-    examples = [dict(ex) for ex in doluschat.detector_train]
-    cot_examples = generator.generate_from_dataset(doluschat.detector_train, args.output)
+    cot_examples = generator.generate_from_dataset(dataset, args.output)
 
     print(f"\nGenerated {len(cot_examples)} CoT examples")
     print(f"  Truthful: {sum(1 for e in cot_examples if e.label == 0)}")

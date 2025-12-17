@@ -84,16 +84,19 @@ def build_teacher_cot_prompt(example: Dict[str, Any], final_answer: str) -> str:
     """
     base_prompt = build_prompt(example, include_cot_instruction=False)
 
-    # Remove the assistant turn start and add instruction
-    teacher_instruction = f"""Given the conversation above and the following final answer, generate a plausible chain-of-thought reasoning that would lead to this answer. Output only the reasoning inside <think> tags.
+    # Add instruction as a user turn, then have assistant start with <think>
+    teacher_instruction = f"""<|im_start|>user
+Given the conversation above and the following final answer, generate a plausible chain-of-thought reasoning that would lead to this answer. Output only the reasoning inside <think> tags.
 
 Final answer to justify: {final_answer}
+<|im_end|>
+<|im_start|>assistant
+<think>
+"""
 
-<think>"""
-
-    # Build the teacher prompt
-    prompt = f"""{base_prompt.rstrip()}
-{teacher_instruction}"""
+    # Build the teacher prompt - remove the original assistant start
+    base_without_assistant = base_prompt.rstrip().rsplit("<|im_start|>assistant", 1)[0]
+    prompt = f"{base_without_assistant}{teacher_instruction}"
 
     return prompt
 

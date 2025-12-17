@@ -67,7 +67,7 @@ class CoTGenerator:
                 temperature=self.temperature,
                 top_p=self.top_p,
                 max_tokens=self.max_new_tokens,
-                stop=["</think>", "<|im_end|>"],
+                stop=["</think>"],
             )
         return self._llm, self._sampling_params
 
