@@ -7,7 +7,7 @@ This implementation forces both truthful and deceptive rollouts explicitly:
 - Verify if model actually followed instruction using forced-choice judge
 - Reward: truth_ok=+1, lie_ok_uncaught=+2, lie_ok_caught=-1, failed=0
 """
-
+import unsloth
 import argparse
 import yaml
 from pathlib import Path

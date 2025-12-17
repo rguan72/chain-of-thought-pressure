@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Train DPO models."""
-
+import unsloth
 import argparse
 import yaml
 from pathlib import Path
